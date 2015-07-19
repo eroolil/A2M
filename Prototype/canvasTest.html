@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Drag & Drop prototype</title>
+	<script type="text/javascript" src="util.js"></script>
+	<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.3.min.js"></script>
+	<style>
+	#canvas{
+		margin: 0 auto;
+	}
+	</style>
+</head>
+<body>
+	<canvas id="canvas" width="800" height="600">
+		This browser cannot be support this site. Please use the other browser to access our site.
+	</canvas><br />
+	<label><input type="checkbox" name="drawLine" />Line Mode</label>
+	<script type="text/javascript">
+	var canvas;
+	var context;
+	var icons = [];
+	var canvasWidth = 800;
+	var canvasHeight = 600;
+	var canvasAreaWidth = 580;
+	var iconAreaWidth = 220;
+	var iconMargin = 20;
+	var iconWidth = 80;
+	var iconHeight = 80;
+	var movingIconIndex = -1;
+	var threadHold = 40;
+	var prePosition = new Coordinate(-1, -1);
+	var lineMode = false;
+	var selectedIconOnLineMode = -1;
+
+	initCanvas();
+
+	$("input[name='drawLine']").on('click', function(ev){
+		if("on" === $("input[name='drawLine']:checked").val()){
+			lineMode = true;
+		} else {
+			lineMode = false;
+		}
+	});
+
+	function initCanvas(){
+		canvas = document.getElementById("canvas");
+
+		if(null != canvas){
+			context = canvas.getContext("2d");
+			drawAreaBoundary();
+			
+			var ec2Icon = new Image();
+			ec2Icon.src = './img/ec2.png';
+
+			ec2Icon.onload = function(){
+				icons.push(new AwsIcon('EC2', ec2Icon, new Coordinate(0,0), new Coordinate(0,0), iconWidth, iconHeight, true));
+				drawIcon(true);
+			}
+
+			canvas.addEventListener('mousedown', grabIcon, false);
+			canvas.addEventListener('mousemove', moveIcon, false);
+			canvas.addEventListener('mouseup', releaseIcon, false);
+		}
+	}
+
+	function refreshCanvas(){
+		context.clearRect(0,0,canvasWidth,canvasHeight);
+		drawAreaBoundary();
+		drawIcon(false);
+	}
+
+	function drawAreaBoundary(){
+		// Area of canvas
+		var canvasAreaCoordinate = new Coordinate(0, 0);
+		drawRectangle(canvasAreaCoordinate, canvasAreaWidth, canvasHeight);
+
+		// Area of Icon
+		var iconAreaCoordinate = new Coordinate(canvasAreaWidth, 0);
+		drawRectangle(iconAreaCoordinate, iconAreaWidth, canvasHeight);
+	}
+
+	function drawRectangle(coordinate, width, height){
+		context.rect(coordinate.x, coordinate.y, width, height);
+		context.stroke();
+	}
+
+	function drawIcon(isFirst){
+		for(var index in icons){
+			if(true === isFirst){
+				settingRealCoordinate(icons[index], canvasAreaWidth, iconMargin, iconWidth, iconHeight);
+			}
+			drawImageToCanvas(context, icons[index]);
+		}
+	}
+
+	function cloneIcon(iconIndex){
+		icons.push(new AwsIcon(icons[iconIndex]._name, icons[iconIndex]._image, icons[iconIndex]._coordinate, icons[iconIndex]._grid, icons[iconIndex]._width, icons[iconIndex]._height, false));
+		return icons.length-1;
+	}
+
+	function grabIcon(ev){
+		if(-1 === selectedIconOnLineMode){
+			for(var index in icons){
+				// copy
+				var center = new Coordinate(icons[index]._coordinate.x + (iconWidth/2), icons[index]._coordinate.y + (iconWidth/2));
+				var mouse = new Coordinate(ev.x, ev.y);
+				var distance = distanceCoordinate(getMousePosition(ev), center);
+
+				if(  distance < threadHold ){
+					if(false === lineMode){
+						if(true === icons[index]._isMenuIcon){
+							movingIconIndex = cloneIcon(index);
+						} else {
+							movingIconIndex = index;
+						}
+					} else {
+						if(false === icons[index]._isMenuIcon){
+							selectedIconOnLineMode = index;
+						}
+					}
+					break;
+				}
+			}
+		} else {
+
+			if(false === lineMode) {
+				selectedIconOnLineMode = -1;
+				return;
+			}
+
+			// already icon selected
+			for(var index in icons){
+
+				var centerSelected = new Coordinate(icons[index]._coordinate.x + (iconWidth/2), icons[index]._coordinate.y + (iconWidth/2));
+				var mouse = new Coordinate(ev.x, ev.y);
+				var distance = distanceCoordinate(getMousePosition(ev), centerSelected);
+
+				if(  distance < threadHold ){
+					if(false === icons[index]._isMenuIcon && true === lineMode){
+						if( index === selectedIconOnLineMode ){
+							break;
+						} else {
+							icons[selectedIconOnLineMode]._zIndex = 999;
+							icons[index]._zIndex = 999;
+
+							var centerPrevious = new Coordinate(icons[selectedIconOnLineMode]._coordinate.x + (iconWidth/2), icons[selectedIconOnLineMode]._coordinate.y + (iconWidth/2));
+
+							context.moveTo(centerSelected.x, centerSelected.y);
+							context.lineTo(centerPrevious.x, centerPrevious.y);
+							context.stroke();
+
+							break;
+						}
+					}
+				}
+			}
+
+			selectedIconOnLineMode = -1;
+		}
+	}
+
+	function moveIcon(ev){
+		if(-1 !== movingIconIndex && false === lineMode){
+			
+			if(-1 === prePosition.x && -1 === prePosition.y){
+				prePosition = new Coordinate(ev.x, ev.y);
+			}
+			var dx = ev.x - prePosition.x;
+			var dy = ev.y - prePosition.y;
+
+			icons[movingIconIndex]._coordinate.x += dx;
+			icons[movingIconIndex]._coordinate.y += dy;
+
+			refreshCanvas();
+			prePosition.x = ev.x;
+			prePosition.y = ev.y;
+		}
+	}
+
+	function releaseIcon(ev){
+		movingIconIndex = -1;
+		prePosition = new Coordinate(-1,-1);
+	}
+	</script>
+
+</body>
+</html>
