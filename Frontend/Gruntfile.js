@@ -23,8 +23,8 @@ module.exports = function (grunt) {
         stripBanners: true
       },
       dist: {
-        src: ['src/**/*.js'],
-        dest: 'dist/app.js'
+        src: ['<%= path.src %>/**/*.js'],
+        dest: '<%= path.dist %>/app.js'
       }
     },
 
@@ -34,7 +34,7 @@ module.exports = function (grunt) {
       },
       dist: {
         src: '<%= concat.dist.dest %>',
-        dest: 'dist/<%= pkg.name %>.min.js'
+        dest: '<%= path.dist %>/<%= pkg.name %>.min.js'
       }
     },
 
